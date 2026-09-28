@@ -1,20 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MEALS = ['breakfast', 'lunch', 'snacks', 'dinner'];
 
+const MEAL_META = {
+  breakfast: { icon: '🍳', label: 'Breakfast' },
+  lunch: { icon: '🍛', label: 'Lunch' },
+  snacks: { icon: '☕', label: 'Snacks' },
+  dinner: { icon: '🍲', label: 'Dinner' }
+};
+
 function DishChip({ name, onRemove }) {
   return (
     <span className="dish-chip" title={name}>
-      {name.length > 16 ? name.slice(0, 14) + '…' : name}
-      <span
+      <span className="dish-chip__name">{name}</span>
+      <button
+        type="button"
         className="dish-chip__remove"
         onClick={onRemove}
         aria-label={`Remove ${name}`}
       >
         ×
-      </span>
+      </button>
     </span>
   );
 }
@@ -49,6 +58,16 @@ function CellInput({ weekday, meal, dishes, onChange }) {
     setSuggestions([]);
   }
 
+  function handleBlur() {
+    setTimeout(() => {
+      if (query.trim()) {
+        addDish(query.trim());
+      } else {
+        setSuggestions([]);
+      }
+    }, 150);
+  }
+
   function handleKeyDown(e) {
     if (e.key === 'Enter' && query.trim()) {
       e.preventDefault();
@@ -63,17 +82,20 @@ function CellInput({ weekday, meal, dishes, onChange }) {
   return (
     <div className="admin-cell">
       <div className="admin-cell__day">{DAYS[weekday].slice(0, 3)}</div>
-      {dishes.map(name => (
-        <DishChip key={name} name={name} onRemove={() => removeDish(name)} />
-      ))}
+      <div className="admin-cell__chips">
+        {dishes.map(name => (
+          <DishChip key={name} name={name} onRemove={() => removeDish(name)} />
+        ))}
+      </div>
       <div className="suggest-wrap">
         <input
           id={`cell-${weekday}-${meal}`}
           className="cell-input"
-          placeholder="+ Add dish"
+          placeholder="+ Add dish…"
           value={query}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
           autoComplete="off"
         />
         {suggestions.length > 0 && (
@@ -158,7 +180,11 @@ export default function AdminMenu() {
 
     try {
       const res = await api.post('/admin/menu', { slots });
-      setSuccess(`Saved! Menu version created. ${res.newDishesCreated} new dishes added.`);
+      const totalDishes = slots.reduce((acc, s) => acc + s.dishNames.length, 0);
+      const newDishesMsg = res.newDishesCreated > 0
+        ? ` (${res.newDishesCreated} new catalog item${res.newDishesCreated > 1 ? 's' : ''} added)`
+        : '';
+      setSuccess(`Saved successfully! Weekly menu published with ${totalDishes} dishes across ${slots.length} meals${newDishesMsg}.`);
     } catch (err) {
       setError(err.message || 'Failed to save menu.');
     } finally {
@@ -176,44 +202,75 @@ export default function AdminMenu() {
   }
 
   return (
-    <div>
-      <div className="page-header">
-        <h1>Menu Manager</h1>
+    <div className="admin-menu-page fade-up">
+      <div style={{ marginBottom: 12 }}>
+        <Link to="/today" id="btn-back-today" className="back-link">
+          ← Back to Today's Menu
+        </Link>
+      </div>
+
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <h1>Menu Manager</h1>
+          <span className="page-header__sub">Edit and customize the 7-day schedule</span>
+        </div>
+        <Link
+          to="/admin/report"
+          id="btn-goto-report"
+          className="btn btn-ghost"
+          style={{ width: 'auto', padding: '8px 16px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+        >
+          📊 Disliked Dishes Report →
+        </Link>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
       {success && <div className="success-banner">{success}</div>}
 
-      <p style={{ fontSize: '0.8rem', color: 'var(--text-3)', marginBottom: 14 }}>
-        Type a dish name and press Enter, or pick from suggestions. Each save creates a new version.
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginBottom: 20 }}>
+        Type a dish name and press <kbd style={{ background: 'var(--bg-card-2)', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border-mid)', color: 'var(--text-2)' }}>Enter</kbd>, or choose from suggestions. Click Save at the bottom to publish.
       </p>
 
-      {MEALS.map(meal => (
-        <div key={meal} style={{ marginBottom: 20 }}>
-          <div className="lb-section-title">{meal}</div>
-          <div className="admin-grid">
-            {Array.from({ length: 7 }, (_, w) => (
-              <CellInput
-                key={w}
-                weekday={w}
-                meal={meal}
-                dishes={grid[w][meal]}
-                onChange={(names) => updateCell(w, meal, names)}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+      {MEALS.map(meal => {
+        const meta = MEAL_META[meal] || { icon: '🍽️', label: meal };
+        const totalCount = Array.from({ length: 7 }, (_, w) => grid[w]?.[meal]?.length || 0).reduce((a, b) => a + b, 0);
 
-      <button
-        id="btn-save-menu"
-        className="btn btn-primary"
-        onClick={handleSave}
-        disabled={saving}
-        style={{ marginTop: 8 }}
-      >
-        {saving ? 'Saving…' : 'Save New Menu Version'}
-      </button>
+        return (
+          <div key={meal} className="admin-meal-section">
+            <div className="admin-meal-header">
+              <div className="admin-meal-header__title">
+                <span className="admin-meal-header__icon">{meta.icon}</span>
+                <h2>{meta.label}</h2>
+              </div>
+              <span className="admin-meal-header__badge">{totalCount} dishes planned</span>
+            </div>
+
+            <div className="admin-grid">
+              {Array.from({ length: 7 }, (_, w) => (
+                <CellInput
+                  key={w}
+                  weekday={w}
+                  meal={meal}
+                  dishes={grid[w][meal]}
+                  onChange={(names) => updateCell(w, meal, names)}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      <div className="admin-actions-bar">
+        <button
+          id="btn-save-menu"
+          className="btn btn-primary"
+          onClick={handleSave}
+          disabled={saving}
+          style={{ maxWidth: 320, padding: '14px 28px', fontSize: '0.95rem' }}
+        >
+          {saving ? 'Saving changes…' : '💾 Save New Menu Version'}
+        </button>
+      </div>
     </div>
   );
 }

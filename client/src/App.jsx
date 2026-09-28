@@ -50,10 +50,10 @@ function AdminIcon() {
   );
 }
 
-function BottomNav({ role }) {
+function BottomNav({ role, wide }) {
   return (
     <nav className="bottom-nav" role="navigation" aria-label="Main navigation">
-      <div className="bottom-nav__inner">
+      <div className={`bottom-nav__inner ${wide ? 'bottom-nav__inner--wide' : ''}`}>
         <NavLink to="/today" id="nav-today" className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}>
           <TodayIcon />
           Today
@@ -88,11 +88,32 @@ function AdminGuard({ user, children }) {
   return children;
 }
 
-function PageShell({ user, children }) {
+function PageShell({ user, onLogout, wide = false, children }) {
   return (
     <>
-      <div className="page-wrap">{children}</div>
-      <BottomNav role={user?.role} />
+      <header className="app-topbar">
+        <div className={`app-topbar__inner ${wide ? 'app-topbar__inner--wide' : ''}`}>
+          <div className="app-topbar__brand">
+            <span className="app-topbar__logo">🍽️</span>
+            <span className="app-topbar__title">MessMeter</span>
+          </div>
+          <div className="app-topbar__user">
+            <span className={`user-badge ${user?.role === 'admin' ? 'admin' : 'user'}`}>
+              {user?.role === 'admin' ? '⭐ Admin' : '👤 User'}
+            </span>
+            <button
+              id="btn-logout"
+              className="btn-logout"
+              onClick={onLogout}
+              title={`Logged in as ${user?.email || 'User'}. Click to log out.`}
+            >
+              Log out
+            </button>
+          </div>
+        </div>
+      </header>
+      <main className={`page-wrap ${wide ? 'page-wrap--wide' : ''}`}>{children}</main>
+      <BottomNav role={user?.role} wide={wide} />
     </>
   );
 }
@@ -110,6 +131,15 @@ export default function App() {
     setUser(userData);
   }
 
+  async function handleLogout() {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // silently proceed
+    }
+    setUser(null);
+  }
+
   if (user === undefined) {
     return (
       <div className="spinner-wrap" style={{ minHeight: '100dvh' }}>
@@ -119,7 +149,7 @@ export default function App() {
   }
 
   return (
-    <AuthCtx.Provider value={{ user, setUser }}>
+    <AuthCtx.Provider value={{ user, setUser, handleLogout }}>
       <BrowserRouter>
         <div className="shell">
           <Routes>
@@ -129,31 +159,31 @@ export default function App() {
 
             <Route path="/today" element={
               <AuthGuard user={user}>
-                <PageShell user={user}><Today /></PageShell>
+                <PageShell user={user} onLogout={handleLogout}><Today /></PageShell>
               </AuthGuard>
             } />
 
             <Route path="/rate" element={
               <AuthGuard user={user}>
-                <PageShell user={user}><Onboarding /></PageShell>
+                <PageShell user={user} onLogout={handleLogout}><Onboarding /></PageShell>
               </AuthGuard>
             } />
 
             <Route path="/leaderboard" element={
               <AuthGuard user={user}>
-                <PageShell user={user}><Leaderboard /></PageShell>
+                <PageShell user={user} onLogout={handleLogout}><Leaderboard /></PageShell>
               </AuthGuard>
             } />
 
             <Route path="/admin" element={
               <AdminGuard user={user}>
-                <PageShell user={user}><AdminMenu /></PageShell>
+                <PageShell user={user} onLogout={handleLogout} wide={true}><AdminMenu /></PageShell>
               </AdminGuard>
             } />
 
             <Route path="/admin/report" element={
               <AdminGuard user={user}>
-                <PageShell user={user}><Report /></PageShell>
+                <PageShell user={user} onLogout={handleLogout} wide={true}><Report /></PageShell>
               </AdminGuard>
             } />
 

@@ -5,37 +5,58 @@ const DEV_AUTH = import.meta.env.VITE_DEV_AUTH === 'true';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 export default function Login({ onLogin }) {
-  const [joinCode, setJoinCode] = useState('');
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
+  const [roleTab, setRoleTab] = useState('user'); // 'user' | 'admin'
+  const [joinCode, setJoinCode] = useState('DEMO01');
+  const [email, setEmail] = useState('demo1@example.com');
+  const [name, setName] = useState('Demo User');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  async function handleDevLogin(e) {
-    e.preventDefault();
+  // Switch between User and Admin presets
+  function switchRole(role) {
+    setRoleTab(role);
     setError('');
-    if (!email.trim() || !joinCode.trim()) {
-      setError('Email and join code are required.');
-      return;
+    if (role === 'user') {
+      setEmail('demo1@example.com');
+      setName('Demo User');
+      setJoinCode('DEMO01');
+    } else {
+      setEmail('dev@example.com');
+      setName('Dev Admin');
+      setJoinCode('DEMO01');
     }
+  }
+
+  // Instant login helper for 1-click buttons
+  async function performLogin(targetEmail, targetName, targetJoinCode) {
+    setError('');
     setLoading(true);
     try {
       const data = await api.post('/auth/dev', {
-        email: email.trim(),
-        name: name.trim() || email.trim(),
-        joinCode: joinCode.trim().toUpperCase()
+        email: targetEmail.trim().toLowerCase(),
+        name: targetName.trim() || targetEmail.trim(),
+        joinCode: targetJoinCode.trim().toUpperCase()
       });
       onLogin(data);
     } catch (err) {
-      setError(err.message || 'Login failed. Check your join code.');
+      setError(err.message || 'Login failed. Check your join code or email.');
     } finally {
       setLoading(false);
     }
   }
 
+  async function handleFormSubmit(e) {
+    e.preventDefault();
+    if (!email.trim() || !joinCode.trim()) {
+      setError('Email and join code are required.');
+      return;
+    }
+    await performLogin(email, name, joinCode);
+  }
+
   function handleGoogleClick() {
     if (!GOOGLE_CLIENT_ID) {
-      setError('Google login is not configured. Use dev login below.');
+      setError('Google login is not configured. Use instant demo login below.');
       return;
     }
     /* global google */
@@ -64,31 +85,123 @@ export default function Login({ onLogin }) {
     <div className="login-page">
       <div className="login-brand">
         <div className="login-brand__icon">🍽</div>
-        <h1 className="login-brand__title">Mess Meter</h1>
-        <p className="login-brand__sub">Rate your mess. Know what's worth eating.</p>
+        <h1 className="login-brand__title">MessMeter</h1>
+        <p className="login-brand__sub">Rate hostel mess meals. Know what's worth eating.</p>
       </div>
 
       <div className="login-box fade-up">
-        <p className="login-box__label">Sign in to your mess</p>
-
         {error && <div className="error-banner" role="alert">{error}</div>}
 
-        <div className="form-field">
-          <label htmlFor="joinCode">Mess Join Code</label>
-          <input
-            id="joinCode"
-            type="text"
-            placeholder="e.g. DEMO01"
-            value={joinCode}
-            onChange={e => setJoinCode(e.target.value.toUpperCase())}
-            maxLength={8}
-            autoCapitalize="characters"
-            style={{ letterSpacing: '0.15em', fontWeight: 700 }}
-          />
+        {/* ── Quick 1-Click Login Section ── */}
+        <div className="quick-login-section">
+          <p className="login-box__label">⚡ 1-Click Instant Demo Login</p>
+          <div className="quick-login-grid">
+            <button
+              id="btn-quick-user"
+              type="button"
+              className="quick-login-btn user"
+              disabled={loading}
+              onClick={() => performLogin('demo1@example.com', 'Demo User', 'DEMO01')}
+            >
+              <div className="quick-login-btn__icon">👤</div>
+              <div className="quick-login-btn__text">
+                <strong>Login as User</strong>
+                <span>demo1@example.com • View daily menu, rate dishes & ranks</span>
+              </div>
+            </button>
+
+            <button
+              id="btn-quick-admin"
+              type="button"
+              className="quick-login-btn admin"
+              disabled={loading}
+              onClick={() => performLogin('dev@example.com', 'Dev Admin', 'DEMO01')}
+            >
+              <div className="quick-login-btn__icon">🛡️</div>
+              <div className="quick-login-btn__text">
+                <strong>Login as Admin</strong>
+                <span>dev@example.com • Edit weekly menu & disliked reports</span>
+              </div>
+            </button>
+          </div>
         </div>
+
+        <div className="divider">or customize credentials</div>
+
+        {/* ── Role Selector Tabs: User vs Admin ── */}
+        <div className="role-tabs">
+          <button
+            type="button"
+            className={`role-tab ${roleTab === 'user' ? 'active' : ''}`}
+            onClick={() => switchRole('user')}
+          >
+            👤 User
+          </button>
+          <button
+            type="button"
+            className={`role-tab ${roleTab === 'admin' ? 'active' : ''}`}
+            onClick={() => switchRole('admin')}
+          >
+            🛡️ Admin
+          </button>
+        </div>
+
+        {DEV_AUTH && (
+          <form onSubmit={handleFormSubmit} id="form-dev-login" style={{ marginTop: 12 }}>
+            <div className="form-field">
+              <label htmlFor="joinCode">Mess Join Code</label>
+              <input
+                id="joinCode"
+                type="text"
+                placeholder="e.g. DEMO01"
+                value={joinCode}
+                onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                maxLength={8}
+                autoCapitalize="characters"
+                style={{ letterSpacing: '0.15em', fontWeight: 700 }}
+              />
+            </div>
+
+            <div className="form-field">
+              <label htmlFor="devEmail">
+                {roleTab === 'admin' ? 'Admin Email' : 'User Email'}
+              </label>
+              <input
+                id="devEmail"
+                type="email"
+                placeholder={roleTab === 'admin' ? 'dev@example.com' : 'user@example.com'}
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </div>
+
+            <div className="form-field">
+              <label htmlFor="devName">Display Name (optional)</label>
+              <input
+                id="devName"
+                type="text"
+                placeholder={roleTab === 'admin' ? 'Dev Admin' : 'Demo User'}
+                value={name}
+                onChange={e => setName(e.target.value)}
+              />
+            </div>
+
+            <button
+              id="btn-dev-login"
+              className="btn btn-primary"
+              type="submit"
+              disabled={loading}
+              style={{ marginTop: 10 }}
+            >
+              {loading ? 'Signing in…' : `Sign In as ${roleTab === 'admin' ? 'Admin' : 'User'}`}
+            </button>
+          </form>
+        )}
 
         {GOOGLE_CLIENT_ID && (
           <>
+            <div className="divider">or</div>
             <button
               id="btn-google-login"
               className="google-btn"
@@ -104,49 +217,7 @@ export default function Login({ onLogin }) {
               </svg>
               Continue with Google
             </button>
-            <div className="divider">or</div>
           </>
-        )}
-
-        {DEV_AUTH && (
-          <form onSubmit={handleDevLogin} id="form-dev-login">
-            <div className="form-field">
-              <label htmlFor="devEmail">Email</label>
-              <input
-                id="devEmail"
-                type="email"
-                placeholder="demo1@example.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                autoComplete="email"
-              />
-            </div>
-            <div className="form-field">
-              <label htmlFor="devName">Name (optional)</label>
-              <input
-                id="devName"
-                type="text"
-                placeholder="Your name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-              />
-            </div>
-            <button
-              id="btn-dev-login"
-              className="btn btn-primary"
-              type="submit"
-              disabled={loading}
-              style={{ marginTop: 8 }}
-            >
-              {loading ? 'Signing in…' : 'Sign In'}
-            </button>
-          </form>
-        )}
-
-        {!DEV_AUTH && !GOOGLE_CLIENT_ID && (
-          <p style={{ color: 'var(--text-3)', fontSize: '0.82rem', textAlign: 'center', marginTop: 8 }}>
-            Configure <code>VITE_GOOGLE_CLIENT_ID</code> to enable login.
-          </p>
         )}
       </div>
     </div>

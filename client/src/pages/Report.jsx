@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 
 export default function Report() {
@@ -27,16 +28,29 @@ export default function Report() {
   }
 
   return (
-    <div>
-      <div className="page-header">
-        <h1>Most Disliked</h1>
+    <div className="report-page fade-up">
+      <div style={{ marginBottom: 12 }}>
+        <Link
+          to="/admin"
+          id="btn-back-to-menu"
+          className="back-link"
+        >
+          ← Back to Menu Manager
+        </Link>
+      </div>
+
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <h1>Most Disliked Dishes</h1>
+          <span className="page-header__sub">Dishes on current menu with ≥5 votes, worst first</span>
+        </div>
         <button
           id="btn-print-report"
           className="btn btn-ghost"
           onClick={handlePrint}
-          style={{ width: 'auto', padding: '6px 14px', fontSize: '0.8rem' }}
+          style={{ width: 'auto', padding: '8px 18px', fontSize: '0.85rem' }}
         >
-          Print
+          🖨️ Print Report
         </button>
       </div>
 

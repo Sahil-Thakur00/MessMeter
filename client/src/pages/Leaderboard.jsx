@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 
 export default function Leaderboard() {
+  const navigate = useNavigate();
   const [dishes, setDishes] = useState(null);
   const [error, setError] = useState('');
 
@@ -34,10 +36,19 @@ export default function Leaderboard() {
   }
 
   return (
-    <div>
+    <div className="fade-up">
+      <button
+        id="btn-back-to-today"
+        className="back-link"
+        onClick={() => navigate('/today')}
+        style={{ marginBottom: 12 }}
+      >
+        ← Back to Today's Menu
+      </button>
+
       <div className="page-header">
-        <h1>Leaderboard</h1>
-        <span className="page-header__sub">{rated.length} ranked</span>
+        <h1>Dish Leaderboard</h1>
+        <span className="page-header__sub">{rated.length} ranked dishes</span>
       </div>
 
       {error && <div className="error-banner">{error}</div>}

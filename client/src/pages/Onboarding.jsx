@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 
 export default function Onboarding({ onDone }) {
+  const navigate = useNavigate();
   const [dishes, setDishes] = useState(null);
   const [error, setError] = useState('');
   const [voting, setVoting] = useState({});
@@ -16,6 +18,14 @@ export default function Onboarding({ onDone }) {
       setDishes(data);
     } catch {
       setError('Failed to load dishes.');
+    }
+  }
+
+  function handleSkip() {
+    if (typeof onDone === 'function') {
+      onDone();
+    } else {
+      navigate('/today');
     }
   }
 
@@ -42,6 +52,14 @@ export default function Onboarding({ onDone }) {
 
   return (
     <div>
+      <button
+        id="btn-back-to-today"
+        className="back-link"
+        onClick={() => navigate('/today')}
+      >
+        ← Back to Today's Menu
+      </button>
+
       <div className="page-header">
         <h1>Rate Dishes</h1>
         <span className="page-header__sub">{dishes.length} left</span>
@@ -54,6 +72,14 @@ export default function Onboarding({ onDone }) {
           <div style={{ fontSize: '3rem', marginBottom: 12 }}>🎉</div>
           <h2>You're all caught up!</h2>
           <p>You've rated all dishes on the current menu.</p>
+          <button
+            id="btn-goto-today"
+            className="btn btn-primary"
+            onClick={() => navigate('/today')}
+            style={{ marginTop: 20, width: 'auto', padding: '10px 24px' }}
+          >
+            View Today's Menu →
+          </button>
         </div>
       ) : (
         <div className="fade-up">
@@ -86,10 +112,10 @@ export default function Onboarding({ onDone }) {
           <button
             id="btn-skip-onboarding"
             className="btn btn-ghost"
-            onClick={onDone}
+            onClick={handleSkip}
             style={{ marginTop: 8 }}
           >
-            Skip for now
+            Skip for now →
           </button>
         </div>
       )}
