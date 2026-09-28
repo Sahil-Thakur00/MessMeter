@@ -5,7 +5,7 @@ const cookieParser = require('cookie-parser');
 
 const authRoutes = require('./routes/auth');
 const studentRoutes = require('./routes/student');
-const adminRoutes = require('./routes/admin');
+const { router: adminRoutes } = require('./routes/admin');
 
 const app = express();
 
@@ -24,7 +24,7 @@ app.get('/api/health', (req, res) => {
 
 // Mount routes under /api
 app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api', adminRoutes);
 app.use('/api', studentRoutes);
 
 // Central error-handling middleware
