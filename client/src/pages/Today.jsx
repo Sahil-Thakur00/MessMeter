@@ -4,16 +4,22 @@ import { api } from '../api.js';
 const VERDICT_LABEL = {
   go: 'Go for it',
   meh: 'Meh',
-  skip: 'Skip',
-  insufficient: 'Not enough votes'
+  skip: 'Skip it',
+  insufficient: 'Not enough data'
+};
+
+const VERDICT_ICON = {
+  go: '✓',
+  meh: '~',
+  skip: '✕',
+  insufficient: '?'
 };
 
 function VerdictBadge({ verdict }) {
   const cls = verdict === 'insufficient' ? 'insufficient' : verdict;
   return (
     <span className={`verdict-badge ${cls}`} aria-label={`Verdict: ${VERDICT_LABEL[verdict]}`}>
-      {verdict === 'go' && '✓ '}
-      {verdict === 'skip' && '✕ '}
+      <span>{VERDICT_ICON[verdict]}</span>
       {VERDICT_LABEL[verdict] || verdict}
     </span>
   );
@@ -21,30 +27,36 @@ function VerdictBadge({ verdict }) {
 
 function DishRow({ dish, onVote }) {
   const { dishId, name, up, total, myVote } = dish;
+  const idStr = dishId?.toString() ?? '';
   const pct = total > 0 ? Math.round((up / total) * 100) : null;
 
   return (
     <div className="dish-row">
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="dish-row__left">
         <div className="dish-row__name">{name}</div>
         <div className="dish-row__meta">
-          {pct !== null ? `${pct}% liked · ${total} vote${total !== 1 ? 's' : ''}` : 'No votes yet'}
+          {pct !== null ? `${pct}% approval · ${total} vote${total !== 1 ? 's' : ''}` : 'No votes yet'}
         </div>
+        {pct !== null && (
+          <div className="dish-approval-bar">
+            <div className="dish-approval-bar__fill" style={{ width: `${pct}%` }} />
+          </div>
+        )}
       </div>
       <div className="vote-btns">
         <button
-          id={`vote-up-${dishId}`}
+          id={`vote-up-${idStr}`}
           className={`vote-btn up${myVote === 1 ? ' active' : ''}`}
-          onClick={() => onVote(dishId, myVote === 1 ? 0 : 1)}
+          onClick={() => onVote(idStr, myVote === 1 ? 0 : 1)}
           aria-label={`Thumbs up for ${name}`}
           aria-pressed={myVote === 1}
         >
           👍
         </button>
         <button
-          id={`vote-down-${dishId}`}
+          id={`vote-down-${idStr}`}
           className={`vote-btn down${myVote === -1 ? ' active' : ''}`}
-          onClick={() => onVote(dishId, myVote === -1 ? 0 : -1)}
+          onClick={() => onVote(idStr, myVote === -1 ? 0 : -1)}
           aria-label={`Thumbs down for ${name}`}
           aria-pressed={myVote === -1}
         >
@@ -66,12 +78,13 @@ function MealCard({ mealData, onVote }) {
         <VerdictBadge verdict={v} />
       </div>
       {v === 'skip' && dragDish && (
-        <div className="meal-card__drag-dish">
-          Skip — {dragDish} is rated low
+        <div className="meal-card__skip-strip">
+          <span>⚠</span>
+          <span>{dragDish} is rated poorly</span>
         </div>
       )}
       {dishes.map(dish => (
-        <DishRow key={dish.dishId} dish={dish} onVote={onVote} />
+        <DishRow key={dish.dishId?.toString()} dish={dish} onVote={onVote} />
       ))}
     </div>
   );
@@ -81,22 +94,19 @@ export default function Today() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const res = await api.get('/today');
       setData(res);
     } catch {
-      setError('Failed to load today\'s menu.');
+      setError("Failed to load today's menu.");
     }
-  }
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
-  // Optimistic vote: update locally first, rollback on error, then refetch that meal
   async function handleVote(dishId, value) {
     const dishIdStr = dishId.toString();
-
-    // Capture previous state for rollback
     const prev = data;
 
     // Optimistic update
@@ -106,28 +116,33 @@ export default function Today() {
         ...old,
         meals: old.meals.map(meal => ({
           ...meal,
-          dishes: meal.dishes.map(d =>
-            d.dishId.toString() === dishIdStr
-              ? {
-                  ...d,
-                  myVote: value,
-                  up: value === 1 ? d.up + (d.myVote !== 1 ? 1 : 0) - (d.myVote === 1 ? 1 : 0)
-                    : value === -1 ? d.up - (d.myVote === 1 ? 1 : 0)
-                    : d.up - (d.myVote === 1 ? 1 : 0),
-                  total: value === 0 ? d.total - (d.myVote !== 0 ? 1 : 0) : d.total + (d.myVote === 0 ? 1 : 0)
-                }
-              : d
-          )
+          dishes: meal.dishes.map(d => {
+            if (d.dishId?.toString() !== dishIdStr) return d;
+            const wasUp = d.myVote === 1;
+            const wasDown = d.myVote === -1;
+            const wasVoted = d.myVote !== 0;
+            let newUp = d.up;
+            let newTotal = d.total;
+            if (value === 0) {
+              if (wasUp) newUp--;
+              if (wasVoted) newTotal--;
+            } else if (value === 1) {
+              if (!wasUp) { newUp++; if (!wasVoted) newTotal++; }
+              if (wasDown) { /* total stays */ }
+            } else {
+              if (wasUp) newUp--;
+              if (!wasVoted) newTotal++;
+            }
+            return { ...d, myVote: value, up: Math.max(0, newUp), total: Math.max(0, newTotal) };
+          })
         }))
       };
     });
 
     try {
       await api.put(`/votes/${dishIdStr}`, { value });
-      // Refetch to get accurate counts and updated verdict
-      load();
+      load(); // refetch for accurate verdict
     } catch {
-      // Rollback on error
       setData(prev);
     }
   }
@@ -138,8 +153,7 @@ export default function Today() {
         <div className="page-header"><h1>Today's Menu</h1></div>
         {error
           ? <div className="error-banner">{error}</div>
-          : <div className="spinner-wrap"><div className="spinner" /></div>
-        }
+          : <div className="spinner-wrap"><div className="spinner" /></div>}
       </div>
     );
   }
@@ -152,10 +166,10 @@ export default function Today() {
       </div>
 
       {data.meals.length === 0 ? (
-        <div className="onboarding-empty">
-          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📭</div>
+        <div className="empty-state fade-up">
+          <div className="empty-state__icon">📭</div>
           <h2>No menu today</h2>
-          <p>No slots scheduled for today.</p>
+          <p>No slots are scheduled for today.</p>
         </div>
       ) : (
         <div className="fade-up">

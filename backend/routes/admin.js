@@ -125,4 +125,50 @@ router.get('/admin/dishes/suggest', requireAdmin, wrap(async (req, res) => {
   res.json(dishes.map(d => ({ dishId: d._id, name: d.name })));
 }));
 
+// GET /api/admin/report?limit=10&minVotes=5 (admin)
+router.get('/admin/report', requireAdmin, wrap(async (req, res) => {
+  const { messId } = req.user;
+  const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+  const minVotes = parseInt(req.query.minVotes) || 5;
+
+  const menu = await getCurrentMenu(messId);
+  if (!menu) return res.json([]);
+
+  const allDishIds = [...new Set(menu.slots.flatMap(s => s.dishIds.map(id => id.toString())))];
+  if (allDishIds.length === 0) return res.json([]);
+
+  const statsMap = await getStats(messId, allDishIds);
+  const dishes = await Dish.find({ _id: { $in: allDishIds }, messId }).select('name _id');
+
+  // Get last vote time per dish
+  const messObjId = new mongoose.Types.ObjectId(messId);
+  const lastVotePipeline = await Vote.aggregate([
+    { $match: { messId: messObjId, dishId: { $in: allDishIds.map(id => new mongoose.Types.ObjectId(id)) } } },
+    { $group: { _id: '$dishId', lastVoteAt: { $max: '$updatedAt' } } }
+  ]);
+  const lastVoteMap = new Map(lastVotePipeline.map(r => [r._id.toString(), r.lastVoteAt]));
+
+  const results = dishes
+    .map(d => {
+      const idStr = d._id.toString();
+      const stats = statsMap.get(idStr) || { up: 0, total: 0 };
+      if (stats.total < minVotes) return null;
+      const down = stats.total - stats.up;
+      const score = wilsonLowerBound(stats.up, stats.total);
+      return {
+        name: d.name,
+        up: stats.up,
+        down,
+        total: stats.total,
+        score: Math.round(score * 1000) / 1000,
+        lastVoteAt: lastVoteMap.get(idStr) || null
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.score - b.score) // ascending = worst first
+    .slice(0, limit);
+
+  res.json(results);
+}));
+
 module.exports = { router, getStats, getCurrentMenu };

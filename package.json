@@ -1,0 +1,13 @@
+{
+  "name": "messmeter",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cd client && npm install && npm run build",
+    "start": "cd backend && node server.js",
+    "install:all": "cd backend && npm install && cd ../client && npm install"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

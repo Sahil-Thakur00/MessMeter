@@ -221,6 +221,32 @@ async function run() {
   if (suggestRes.status === 403) pass('Student gets 403 on GET /api/admin/dishes/suggest');
   else fail(`Expected 403, got ${suggestRes.status}`);
 
+  // ── Test 8: Report endpoint (M4) ────────────────────────────────────
+  console.log('\n[8] Admin report endpoint');
+
+  const reportRes = await req('GET', '/api/admin/report?limit=10&minVotes=1', { cookie: adminCookie });
+  if (reportRes.status === 200 && Array.isArray(reportRes.data)) pass('GET /api/admin/report returns 200 array');
+  else fail(`Report returned ${reportRes.status}: ${JSON.stringify(reportRes.data)}`);
+
+  // Verify ascending score order
+  const scores = reportRes.data.map(d => d.score);
+  const isAsc = scores.every((s, i) => i === 0 || s >= scores[i - 1]);
+  if (isAsc) pass('Report is sorted ascending by score (worst first)');
+  else fail(`Report not ascending: ${scores}`);
+
+  // Report fields: name, up, down, total, score, lastVoteAt
+  if (reportRes.data.length > 0) {
+    const first = reportRes.data[0];
+    const hasFields = ['name', 'up', 'down', 'total', 'score'].every(f => first[f] !== undefined);
+    if (hasFields) pass('Report items have required fields');
+    else fail(`Report item missing fields: ${JSON.stringify(first)}`);
+  }
+
+  // Student cannot access report
+  const reportStudentRes = await req('GET', '/api/admin/report', { cookie: studentCookie });
+  if (reportStudentRes.status === 403) pass('Student gets 403 on GET /api/admin/report');
+  else fail(`Expected 403 on report, got ${reportStudentRes.status}`);
+
   // ── Final report ─────────────────────────────────────────────────────
   console.log('\n══════════════════════════════════════');
   if (failures === 0) {

@@ -27,7 +27,7 @@ export default function Login({ onLogin }) {
       });
       onLogin(data);
     } catch (err) {
-      setError(err.message || 'Login failed');
+      setError(err.message || 'Login failed. Check your join code.');
     } finally {
       setLoading(false);
     }
@@ -35,10 +35,9 @@ export default function Login({ onLogin }) {
 
   function handleGoogleClick() {
     if (!GOOGLE_CLIENT_ID) {
-      setError('Google login is not configured yet. Use dev login below.');
+      setError('Google login is not configured. Use dev login below.');
       return;
     }
-    // Google Identity Services one-tap / popup
     /* global google */
     google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
@@ -63,12 +62,14 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="login-page">
-      <div className="login-logo">🍽</div>
-      <h1 className="login-title">Mess Meter</h1>
-      <p className="login-subtitle">Rate your mess. Know what's worth eating.</p>
+      <div className="login-brand">
+        <div className="login-brand__icon">🍽</div>
+        <h1 className="login-brand__title">Mess Meter</h1>
+        <p className="login-brand__sub">Rate your mess. Know what's worth eating.</p>
+      </div>
 
       <div className="login-box fade-up">
-        <h2>Sign In</h2>
+        <p className="login-box__label">Sign in to your mess</p>
 
         {error && <div className="error-banner" role="alert">{error}</div>}
 
@@ -82,6 +83,7 @@ export default function Login({ onLogin }) {
             onChange={e => setJoinCode(e.target.value.toUpperCase())}
             maxLength={8}
             autoCapitalize="characters"
+            style={{ letterSpacing: '0.15em', fontWeight: 700 }}
           />
         </div>
 
@@ -113,7 +115,7 @@ export default function Login({ onLogin }) {
               <input
                 id="devEmail"
                 type="email"
-                placeholder="dev@example.com"
+                placeholder="demo1@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 autoComplete="email"
@@ -134,15 +136,15 @@ export default function Login({ onLogin }) {
               className="btn btn-primary"
               type="submit"
               disabled={loading}
-              style={{ marginTop: 4 }}
+              style={{ marginTop: 8 }}
             >
-              {loading ? 'Signing in…' : 'Sign In (Dev)'}
+              {loading ? 'Signing in…' : 'Sign In'}
             </button>
           </form>
         )}
 
         {!DEV_AUTH && !GOOGLE_CLIENT_ID && (
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', textAlign: 'center', marginTop: 8 }}>
+          <p style={{ color: 'var(--text-3)', fontSize: '0.82rem', textAlign: 'center', marginTop: 8 }}>
             Configure <code>VITE_GOOGLE_CLIENT_ID</code> to enable login.
           </p>
         )}
