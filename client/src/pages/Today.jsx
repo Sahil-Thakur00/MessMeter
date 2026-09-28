@@ -90,6 +90,22 @@ function MealCard({ mealData, onVote }) {
   );
 }
 
+function formatFullDate(dateStr, dayName) {
+  if (!dateStr) return '';
+  try {
+    const [y, m, d] = dateStr.split('-');
+    const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+    const formatted = dateObj.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    return `${dayName ? `${dayName}, ` : ''}${formatted}`;
+  } catch {
+    return `${dayName ? `${dayName} · ` : ''}${dateStr}`;
+  }
+}
+
 export default function Today() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -161,8 +177,15 @@ export default function Today() {
   return (
     <div>
       <div className="page-header">
-        <h1>Today's Menu</h1>
-        <span className="page-header__sub">{data.date}</span>
+        <div className="today-header-row">
+          <h1>Today's Menu</h1>
+          {data.dayName && (
+            <span className="today-day-badge">
+              📅 {data.dayName}
+            </span>
+          )}
+        </div>
+        <span className="page-header__sub">{formatFullDate(data.date, data.dayName)}</span>
       </div>
 
       {data.meals.length === 0 ? (

@@ -28,7 +28,7 @@ function DishChip({ name, onRemove }) {
   );
 }
 
-function CellInput({ weekday, meal, dishes, onChange }) {
+function CellInput({ weekday, meal, dishes, onChange, isToday }) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const debounceRef = useRef(null);
@@ -80,8 +80,11 @@ function CellInput({ weekday, meal, dishes, onChange }) {
   }
 
   return (
-    <div className="admin-cell">
-      <div className="admin-cell__day">{DAYS[weekday].slice(0, 3)}</div>
+    <div className={`admin-cell ${isToday ? 'admin-cell--today' : ''}`}>
+      <div className="admin-cell__day-header">
+        <span className={`admin-cell__day ${isToday ? 'today' : ''}`}>{DAYS[weekday].slice(0, 3)}</span>
+        {isToday && <span className="today-chip">★ Today</span>}
+      </div>
       <div className="admin-cell__chips">
         {dishes.map(name => (
           <DishChip key={name} name={name} onRemove={() => removeDish(name)} />
@@ -117,6 +120,7 @@ function CellInput({ weekday, meal, dishes, onChange }) {
 }
 
 export default function AdminMenu() {
+  const currentWeekday = new Date().getDay(); // 0 = Sun, 1 = Mon, etc.
   // grid[weekday][meal] = [dishName, ...]
   const [grid, setGrid] = useState(() => {
     const g = {};
@@ -253,6 +257,7 @@ export default function AdminMenu() {
                   meal={meal}
                   dishes={grid[w][meal]}
                   onChange={(names) => updateCell(w, meal, names)}
+                  isToday={w === currentWeekday}
                 />
               ))}
             </div>

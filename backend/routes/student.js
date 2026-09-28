@@ -23,14 +23,16 @@ router.get('/today', requireAuth, wrap(async (req, res) => {
   const now = new Date();
   const todayDate = dateInTz(now, MESS_TZ);
   const todayWeekday = weekdayInTz(now, MESS_TZ);
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayName = dayNames[todayWeekday] || 'Today';
 
   const menu = await getCurrentMenu(messId);
-  if (!menu) return res.json({ date: todayDate, meals: [] });
+  if (!menu) return res.json({ date: todayDate, weekday: todayWeekday, dayName, meals: [] });
 
   const todaySlots = menu.slots.filter(s => s.weekday === todayWeekday);
 
   const allDishIds = [...new Set(todaySlots.flatMap(s => s.dishIds.map(id => id.toString())))];
-  if (allDishIds.length === 0) return res.json({ date: todayDate, meals: [] });
+  if (allDishIds.length === 0) return res.json({ date: todayDate, weekday: todayWeekday, dayName, meals: [] });
 
   const statsMap = await getStats(messId, allDishIds);
 
@@ -71,7 +73,7 @@ router.get('/today', requireAuth, wrap(async (req, res) => {
     meals.push({ meal, dishes: dishRows, verdict });
   }
 
-  res.json({ date: todayDate, meals });
+  res.json({ date: todayDate, weekday: todayWeekday, dayName, meals });
 }));
 
 // GET /api/onboarding

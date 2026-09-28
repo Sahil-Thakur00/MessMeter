@@ -4,6 +4,7 @@ async function apiFetch(path, { method = 'GET', body } = {}) {
   const opts = {
     method,
     credentials: 'include',
+    cache: 'no-store',
     headers: {}
   };
 

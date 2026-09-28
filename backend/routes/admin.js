@@ -34,7 +34,7 @@ async function getCurrentMenu(messId) {
   return Menu.findOne({
     messId,
     effectiveFrom: { $lte: new Date() }
-  }).sort({ effectiveFrom: -1 });
+  }).sort({ effectiveFrom: -1, _id: -1 });
 }
 
 // GET /api/menu — current menu with dish names resolved (any authed user)
